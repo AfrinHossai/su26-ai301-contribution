@@ -1,15 +1,15 @@
 # Contribution [#]: [Issue Title]
 
-**Contribution Number:** [1 / 2 / 3]  
-**Student:** [Your Name]  
-**Issue:** [GitHub issue link]  
-**Status:** [Phase I / Phase II / Phase III / Phase IV] [In Progress / Complete]
+**Contribution Number:** [1]  
+**Student:** Afrin Hossain  
+**Issue:** [[GitHub issue link](https://github.com/fossasia/visdom/issues/686)]  
+**Status:** [Phase I] [Complete] 
 
 ---
 
 ## Why I Chose This Issue
 
-[1-2 paragraphs explaining why this issue interests you, how it matches your skills/learning goals, what you hope to learn]
+This issue asks for a large-scale 3D point-cloud visualization pane in Visdom, ideally with interactive WebGL-based controls for exploring 3D data. This matters because point-cloud visualization is useful in computer vision research areas such as 3D reconstruction, autonomous driving, robotics, and PointNet-style deep learning models. I chose this issue because it is closely aligned with my interest in Computer Vision research, does not require additional specialized hardware beyond my current MacBook setup.
 
 ---
 
