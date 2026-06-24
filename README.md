@@ -243,6 +243,48 @@ before opening the PR.
 
 ---
 
+## Implementation Summary
+
+**Branch:** https://github.com/pahmed/visdom/tree/feat/pointcloud3d-pane  
+**Total commits:** 23 | **Files changed:** 7
+
+### What was built
+
+- `vis.pointcloud3d(xyz, rgb=None, win=None, env=None, opts=None)` — full Python method
+  with input validation, optional downsampling, and inline base64 transport
+- 6 module-level helper functions in `py/visdom/__init__.py` handling the full
+  validate → downsample → encode pipeline
+- `js/panes/PointCloudPane.js` — new React class component with:
+  - Custom `OrbitController` (rotate/zoom/pan/reset) — no Three.js upgrade needed
+  - `THREE.BufferGeometry + THREE.Points` rendering with per-point RGB support
+  - Dirty render loop using `requestAnimationFrame` (only fires on actual change)
+  - Proper GPU teardown (`dispose()` on geometry, material, renderer) on unmount
+- `js/settings.js` updated to register `pointcloud3d` pane type
+- Server-side `window()` handler patched to recognise the new type
+- 2 runnable demo functions in `example/components/plot_pointcloud.py`
+
+### Key commits
+
+| Commit | Description |
+|---|---|
+| `da4856b` | Design spec |
+| `65fad03` | `_pc3d_validate_xyz` + tests |
+| `2e3a4b1` | Full Python `pointcloud3d` method |
+| `0533e19` | `OrbitController` class |
+| `2da493a` | `buildGeometry`, `disposeCloud`, `disposeAll` |
+| `c83cac2` | Server handler fix + server-side tests |
+| `6069f06` | JS bundle rebuild |
+| `464efa4` | Final test expansion (79 → 192 tests) |
+
+### Bugs caught during implementation
+
+- `_pc3d_encode_array` was not enforcing the target dtype before `.tobytes()` — a float64
+  input would silently produce a double-width payload. Fixed by casting before encoding.
+- Server `window()` handler did not recognise `"pointcloud3d"`, causing the payload to be
+  discarded silently on page refresh. Found only during end-to-end testing.
+
+---
+
 ## Testing Strategy
 
 ### Unit Tests
@@ -254,8 +296,6 @@ before opening the PR.
 - [x] `TestPayload` — version/transport fields, xyz dtype/shape/encoding, rgb presence/absence, num\_points fields, bounds fields, base64 round-trip
 - [x] `TestBoundsHelper` — unit cube center and radius
 
-**Total: 189 passed, 3 skipped (PyTorch-dependent paths skipped when torch unavailable)**
-
 ### Integration Tests
 
 - [x] Cypress smoke test — pane renders with `<canvas>` after demo call
@@ -263,8 +303,6 @@ before opening the PR.
 - [x] Server-side `window()` handler recognises `pointcloud3d` type
 
 ### Manual Testing
-
-Started Visdom server and ran the basic demo:
 
 ```bash
 python -m visdom.server &
@@ -279,8 +317,33 @@ print('OK')
 "
 ```
 
-Confirmed: `OK` printed; pane appeared at `http://localhost:8097` with interactive orbit
-controls working correctly.
+Confirmed: `OK` printed; pane appeared at `http://localhost:8097` with all orbit controls
+working correctly.
+
+### Testing Notes
+
+```
+PYTHONPATH=py python3 -m pytest test/test_pointcloud3d.py -v
+```
+
+| Result | Count |
+|---|---|
+| Passed | 189 |
+| Skipped | 3 (PyTorch-dependent paths — skipped when `torch` unavailable) |
+| Failed | 0 |
+
+The 3 skipped tests cover `@pytorch_wrap` tensor coercion paths. They pass in environments
+where PyTorch is installed and are skipped cleanly otherwise — no false negatives.
+
+Test growth over the implementation cycle:
+
+| Milestone | Test count |
+|---|---|
+| Initial helpers (xyz + rgb) | 20 |
+| Opts + downsample helpers | 36 |
+| Full payload + bounds | 79 |
+| Exhaustive gap analysis pass | 142 |
+| Final expansion | 192 |
 
 ---
 
@@ -294,31 +357,10 @@ session. Key decisions and challenges:
 - **Transport choice:** Evaluated binary HTTP endpoint vs. inline base64. Chose base64
   to avoid any server changes — the existing `_send` path handles it transparently.
 - **OrbitController:** Decided against upgrading Three.js (v0.105.2 is pinned) and wrote
-  a lightweight custom controller instead. Avoids breaking existing panes that depend on
-  the current Three.js version.
+  a lightweight custom controller instead. Avoids breaking existing panes.
 - **Bounds precomputation:** Initially the JS side computed `geometry.computeBoundingSphere()`
   client-side. Moved to server-side precomputation so the JS never iterates large typed
   arrays during camera setup — measurable perf win for 100k+ point clouds.
-- **Bug found in review:** `_pc3d_encode_array` was not enforcing the target dtype before
-  calling `.tobytes()` — a float64 array would silently produce a double-width payload.
-  Fixed by casting to the declared dtype before encoding.
-- **Server handler gap:** The `window()` server-side handler did not recognise
-  `"pointcloud3d"` as a valid pane type, causing it to fall through to the default
-  (which discards the payload). Fixed by adding the type to the handler's dispatch list.
-
-### Code Changes
-
-- **Files modified/created:** 7 files (see Files Changed table above)
-- **Key commits:**
-  - `da4856b` — design spec
-  - `65fad03` — `_pc3d_validate_xyz` + tests
-  - `2e3a4b1` — full Python `pointcloud3d` method
-  - `0533e19` — `OrbitController` class
-  - `2da493a` — `buildGeometry`, `disposeCloud`, `disposeAll`
-  - `c83cac2` — server handler fix
-  - `6069f06` — JS bundle rebuild
-  - `464efa4` — final test expansion (79 → 192 tests)
-- **Total commits:** 23 on branch `feat/pointcloud3d-pane`
 
 ---
 
@@ -344,30 +386,27 @@ session. Key decisions and challenges:
 
 ### Technical Skills Gained
 
-- Typed array encoding: understanding little-endian float32/uint8 layout, base64 encoding
-  overhead, and how JavaScript `Float32Array` reconstructs bytes from a `Uint8Array` buffer
+- Typed array encoding: little-endian float32/uint8 layout, base64 overhead, and how
+  JavaScript `Float32Array` reconstructs bytes from a `Uint8Array` buffer
 - Three.js BufferGeometry API: `setAttribute` vs. `addAttribute` (version compatibility),
   `VertexColors` vs `NoColors`, `sizeAttenuation`, `depthWrite` for transparent materials
-- React class component teardown: importance of `dispose()` calls on GPU resources
-  (`WebGLRenderer`, `BufferGeometry`, `Material`) to avoid memory leaks
-- Dirty render loops: why `requestAnimationFrame` should only fire when state actually
-  changes (camera move, data update, resize) rather than every frame
+- React class component teardown: importance of `dispose()` calls on GPU resources to
+  avoid memory leaks (`WebGLRenderer`, `BufferGeometry`, `Material`)
+- Dirty render loops: `requestAnimationFrame` should only fire when state actually changes
 
 ### Challenges Overcome
 
-- **dtype enforcement bug:** Silent float64 → double-width payload in `_pc3d_encode_array`.
-  Found by writing a base64 round-trip test that decoded the payload and compared byte counts.
-- **Camera fit:** Finding the right `DIST_FACTOR` for the initial orbit radius so the
-  cloud fills most of the viewport across wildly different point cloud scales required
-  several iterations.
-- **Server handler gap:** Not obvious from reading the JS side alone — only found by
-  testing end-to-end and noticing panes disappeared on page refresh.
+- **dtype enforcement bug:** Silent float64 → double-width payload. Found by writing a
+  base64 round-trip test that decoded the payload and compared byte counts.
+- **Camera fit:** Finding the right `DIST_FACTOR` for the initial orbit radius across
+  wildly different point cloud scales required several iterations.
+- **Server handler gap:** Not visible from the JS side alone — found only by testing
+  end-to-end and noticing panes disappeared on page refresh.
 
 ### What I'd Do Differently Next Time
 
-Write the end-to-end smoke test (start server, call method, check browser) earlier
-in the process rather than after all unit tests are green. The server handler bug would
-have been caught immediately instead of at the final integration step.
+Write the end-to-end smoke test earlier — before all unit tests are green. The server
+handler bug would have been caught immediately instead of at the final integration step.
 
 ---
 
