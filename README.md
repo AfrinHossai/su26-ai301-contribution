@@ -86,7 +86,7 @@ Confirmed clean baseline:
 PYTHONPATH=py python3 -m pytest test/ -q
 ```
 
-**Working branch:** https://github.com/AfrinHossai/visdom/tree/feat/pointcloud3d-pane
+**Working branch:** https://github.com/AfrinHossai/visdom/tree/feat/issue-686-pointcloud3d
 
 Branch created from `dev`:
 
