@@ -86,7 +86,7 @@ Confirmed clean baseline:
 PYTHONPATH=py python3 -m pytest test/ -q
 ```
 
-**Working branch:** https://github.com/pahmed/visdom/tree/feat/pointcloud3d-pane
+**Working branch:** https://github.com/AfrinHossai/visdom/tree/feat/pointcloud3d-pane
 
 Branch created from `dev`:
 
@@ -227,7 +227,7 @@ componentWillUnmount → disposeAll (WebGLRenderer + geometry + material + contr
 | Double-click | Reset to saved initial state |
 | Toolbar reset button | Same as double-click |
 
-**Implement:** https://github.com/pahmed/visdom/tree/feat/pointcloud3d-pane
+**Implement:** https://github.com/AfrinHossai/visdom/tree/feat/pointcloud3d-pane
 
 **Review:** Self-review against `CONTRIBUTING.md` commit message conventions
 (conventional commits: `feat:`, `fix:`, `test:`, `build:`). Confirm no existing
@@ -245,7 +245,7 @@ before opening the PR.
 
 ## Implementation Summary
 
-**Branch:** https://github.com/pahmed/visdom/tree/feat/pointcloud3d-pane  
+**Branch:** https://github.com/AfrinHossai/visdom/tree/feat/pointcloud3d-pane  
 **Total commits:** 23 | **Files changed:** 7
 
 ### What was built
@@ -366,7 +366,7 @@ session. Key decisions and challenges:
 
 ## Pull Request
 
-**PR Link:** *(pending — branch ready, PR not yet opened)*
+**PR Link:** *https://github.com/fossasia/visdom/pull/1545*
 
 **PR Description draft:**
 
