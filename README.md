@@ -410,6 +410,28 @@ handler bug would have been caught immediately instead of at the final integrati
 
 ---
 
+
+## Description
+Adds a first-class 3D point cloud visualization primitive to Visdom, `vis.pointcloud3d(xyz, rgb=None, win=None, env=None, opts=None)`, backed by Three.js BufferGeometry and a custom OrbitController. `xyz` is an (N, 3) float array of point coordinates; `rgb` is an optional (N, 3) color array accepted as integer [0, 255], float [0, 1], or float [0, 255]. Supported `opts` keys: `title`, `markersize` (default 2.0), `opacity` (default 1.0), `bgcolor` (default '#ffffff'), `show_axes` (default True), `default_color` (default [40, 40, 40]), `max_points`, `downsample` ('stride' or 'random'), and `seed`. On the Python side, input is validated, optionally downsampled (hard cap of 500,000 points), and the resulting typed arrays are base64-encoded into a versioned payload envelope, then sent over the existing `_send` JSON event path (no new server routes or transport). On the JavaScript side, a new `PointCloudPane` React class component renders the cloud using `THREE.BufferGeometry` + `THREE.Points` with size attenuation, driven by a dirty render loop (RAF fires only on data/camera/resize changes, not continuously) and a custom `OrbitController` supporting left-drag rotate, scroll-to-zoom, shift-drag pan, double-click reset, and WebGL context-loss recovery. Reactive opts updates (opacity, markersize, default_color, show_axes) are applied without a full geometry rebuild when the underlying point data is unchanged. On the server side, `UpdateHandler` and the `wrap_func` type guard were extended to recognize the `pointcloud3d` type; a manual JSON patch builder was added for pc3d updates to avoid running `jsonpatch.make_patch` (which would block the IOLoop) over multi-MB base64 payloads, and to ensure `contentID` only changes when point data actually changes (so opts-only updates don't defeat the JS reactive fast path). Rendering opts are now routed through a nested `p["opts"]` dict for this pane type, and the WebSocket `max_message_size` was raised to 64 MiB to accommodate large point clouds with RGB data.
+## Motivation and Context
+Visdom currently has no native way to visualize unstructured 3D point data (e.g. LiDAR scans, 3D reconstructions, point-based ML outputs) other than shoehorning it into a 2D scatter/scatter3d plot, which does not support interactive orbit/pan/zoom navigation or efficient rendering of large point sets. This change adds a dedicated, GPU-accelerated pane purpose-built for that use case. Resolves #686.
+## How Has This Been Tested?
+Added test/test_pointcloud3d.py with 195 unit tests across 8 test classes covering xyz validation, rgb validation (integer/float/range/dtype edge cases), opts validation, downsampling (stride and random modes, seeding, hard-cap enforcement), payload encoding, bounds computation, an end-to-end pipeline integration test, and the server-side window/update handler behavior for the pointcloud3d type. Added a Cypress integration test (cypress/integration/pointcloud3d.js) that runs the two new example demos (plot_pointcloud_basic, plot_pointcloud_rgb) and asserts a pane with a canvas element is rendered for each. Added example/components/plot_pointcloud.py with plot_pointcloud_basic and plot_pointcloud_rgb demo functions, wired into example/demo.py, and manually verified by running demo.py both on this branch and on a clean dev checkout to confirm no regressions in existing pane types.
+## Screenshots (if appropriate):
+
+## Types of changes
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [x] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Code refactor or cleanup (changes to existing code for improved readability or performance)
+
+## Checklist:
+- [x] I adapted the version number under `py/visdom/VERSION` according to [Semantic Versioning](https://semver.org/) (0.2.4 -> 0.3.0, minor bump for a backward-compatible new feature)
+- [x] My code follows the code style of this project.
+- [x] My change requires a change to the documentation.
+- [x] I have updated the documentation accordingly. (README.md API list + `#### vis.pointcloud3d` section, and a new `website/docs/api/point-cloud.md` page wired into the sidebar)
+
+
 ## Resources Used
 
 - [Three.js BufferGeometry documentation](https://threejs.org/docs/#api/en/core/BufferGeometry)
